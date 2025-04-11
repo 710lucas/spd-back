@@ -14,7 +14,12 @@ export class DocumentService {
         ];
     }
 
-    createDocument(name: string, date: Date, preservationStage: string): Document {
+    createDocument(name: string, date: Date, preservationStage: string, metadata? : Map<string, string>): Document | string {
+
+        if(metadata && Object.keys(metadata).length > 4) {
+            return 'Metadata cannot have more than 4 keys';
+        }
+
         let stage: PreservationStageEnum;
         switch (preservationStage) {
             case 'INICIADA':
@@ -33,7 +38,8 @@ export class DocumentService {
             (this.documents.length + 1).toString(),
             name,
             date,
-            stage
+            stage,
+            metadata
         );
         this.documents.push(newDocument);
         return newDocument;
@@ -47,12 +53,16 @@ export class DocumentService {
         return this.documents.find(doc => doc.id === id);
     }
 
-    updateDocument(id: string, name: string, date: Date, preservationStage: PreservationStageEnum): Document | undefined {
+    updateDocument(id: string, name?: string, date?: Date, preservationStage?: PreservationStageEnum, metadata? : Map<string, string>): Document | string | undefined {
         const document = this.getDocumentById(id);
         if (document) {
-            document.name = name;
-            document.date = date;
-            document.preservationStage = preservationStage;
+            document.name = name ?? document.name;
+            document.date = date ?? document.date;
+            document.preservationStage = preservationStage ?? document.preservationStage;
+            if(metadata && Object.keys(metadata).length > 4) {
+                return "Metadata cannot have more than 4 keys";
+            }
+            document.metadata = metadata ? metadata : document.metadata;
             return document;
         }
         return undefined;
