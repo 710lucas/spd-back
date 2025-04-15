@@ -1,17 +1,28 @@
 import { Injectable } from "@nestjs/common";
 import { Document } from "./document.model";
 import { PreservationStageEnum } from "src/Enums/PreservationStageEnum";
+import { v4 } from "uuid";
+import axios, { AxiosRequestConfig } from "axios";
+import { blob } from "stream/consumers";
 
 @Injectable()
 export class DocumentService {
 
     documents : Document[] = [];
+    apiURL : string;
+    apiKey : string;
+    apiUser : string;
+
     constructor() {
         this.documents = [
             new Document('1', 'Document 1', new Date(), PreservationStageEnum.INICIADA),
             new Document('2', 'Document 2', new Date(), PreservationStageEnum.PRESERVADO),
             new Document('3', 'Document 3', new Date(), PreservationStageEnum.FALHA)
         ];
+        this.apiURL = process.env.AM_API_URL || 'http://10.10.10.20'; 
+        this.apiKey = process.env.AM_API_KEY || 'KEY'
+        this.apiUser = process.env.AM_API_USER || 'test';
+
     }
 
     createDocument(name: string, date: Date, preservationStage: string, metadata? : Map<string, string>): Document | string {
@@ -78,6 +89,54 @@ export class DocumentService {
         return false;
     }
 
+
+    async sendSIP(filename : string){
+
+        const filePath = '/uploads/'+filename;
+        const locationUUID = process.env.LOCATION_UUID || 'UUID';
+
+        const fullPathEncoded = Buffer.from(`${locationUUID}:${'/uploads'}`).toString('base64');
+
+        const payload = {
+            name : filename,
+            type : 'standard',
+            accession : '',
+            paths : [fullPathEncoded],
+            row_ids : ['']
+        }
+
+        
+        const response = await axios.post(
+            `${this.apiURL}/api/transfer/start_transfer/`,
+            new URLSearchParams({
+                'name' : filename.toString(),
+                'type' : 'standard',
+                'accession' : '',
+                'paths[]': fullPathEncoded,
+                'row_id[]' : ''
+            }),
+            {
+                headers : {
+                    Authorization : `ApiKey ${this.apiKey}`,
+                    'Content-Type' : 'application/x-www-form-urlencoded'
+                }
+            }
+
+        )
+
+        console.log('payload', payload)
+        setTimeout(() => {
+            console.log('response', response.data)
+            console.log('payload', payload)
+        }, 1000)
+
+    }
+
+    async getAIPStatus(uuidAIP : string){
+        const response = await axios.get(`${this.apiURL}/ingest/status/${uuidAIP}`, {headers : { 'Authorization' : `ApiKey ${this.apiKey}`}});
+        return response.data.status
+
+    }
 
 
 }

@@ -1,6 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Post, Put } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Put, UploadedFile, UseInterceptors } from "@nestjs/common";
 import { DocumentService } from "./document.service";
 import { PreservationStageEnum } from "src/Enums/PreservationStageEnum";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { diskStorage } from "multer";
+import { extname } from "path";
+import { existsSync, mkdirSync } from "fs";
 
 @Controller("documents")
 export class DocumentController {
@@ -30,6 +34,33 @@ export class DocumentController {
     @Delete(":id")
     deleteDocument(@Param("id") id: string) {
         return this.documentService.deleteDocument(id);
+    }
+
+    @Post("upload")
+    @UseInterceptors(
+        FileInterceptor("file", {
+            storage : diskStorage({
+                destination : (req, file, cb) =>{
+                    const fullPath = (process.env.UPLOAD_DIR || "./uploads") + "/upload" + Date.now()
+
+                    if (!existsSync(fullPath)) {
+                        mkdirSync(fullPath, { recursive: true });
+                      }
+
+                    cb(null, fullPath)
+                },
+                filename : (req, file, cb) => {
+
+
+                    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1E9);
+                    const ext = extname(file.originalname);
+                    cb(null, file.fieldname + "-" + uniqueSuffix + ext);
+                }
+            })
+        })
+    )
+    uploadDocument(@UploadedFile() file: Express.Multer.File) {
+        return this.documentService.sendSIP(file.filename);
     }
 
 }

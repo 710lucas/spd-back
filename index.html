@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Upload para Archivematica</title>
+</head>
+<body>
+  <h1>Enviar arquivo</h1>
+  <form id="uploadForm">
+    <input type="file" id="fileInput" name="file" required />
+    <button type="submit">Enviar</button>
+  </form>
+
+  <p id="status"></p>
+
+  <script>
+    const form = document.getElementById('uploadForm');
+    const status = document.getElementById('status');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const fileInput = document.getElementById('fileInput');
+      const file = fileInput.files[0];
+
+      if (!file) {
+        status.textContent = 'Selecione um arquivo antes de enviar.';
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await fetch('http://localhost:3000/documents/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const result = await response.json();
+        console.log(result)
+        status.textContent = 'Arquivo enviado com sucesso: ' + JSON.stringify(result);
+      } catch (error) {
+        console.error(error);
+        status.textContent = 'Erro ao enviar o arquivo.';
+      }
+    });
+  </script>
+</body>
+</html>
