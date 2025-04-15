@@ -1,9 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { Document } from "./document.model";
 import { PreservationStageEnum } from "src/Enums/PreservationStageEnum";
-import { v4 } from "uuid";
-import axios, { AxiosRequestConfig } from "axios";
-import { blob } from "stream/consumers";
+import axios from "axios";
+import { CreateDocumentType } from "./DTOs/CreateDocumentDTO";
 
 @Injectable()
 export class DocumentService {
@@ -90,12 +89,12 @@ export class DocumentService {
     }
 
 
-    async sendSIP(filename : string){
+    async sendSIP(filename : string, documentData : CreateDocumentType){
 
-        const filePath = '/uploads/'+filename;
+        const filePath = process.env.REMOTE_UPLOAD_DIR || './uploads/'
         const locationUUID = process.env.LOCATION_UUID || 'UUID';
 
-        const fullPathEncoded = Buffer.from(`${locationUUID}:${'/uploads'}`).toString('base64');
+        const fullPathEncoded = Buffer.from(`${locationUUID}:${filePath}`).toString('base64');
 
         const payload = {
             name : filename,
@@ -121,14 +120,28 @@ export class DocumentService {
                     'Content-Type' : 'application/x-www-form-urlencoded'
                 }
             }
-
         )
 
-        console.log('payload', payload)
-        setTimeout(() => {
-            console.log('response', response.data)
-            console.log('payload', payload)
-        }, 1000)
+
+
+        console.log(response.data)
+        console.log(filename)
+
+        const pathSplit = response.data.path.split('/')
+        console.log(pathSplit[pathSplit.length - 2])
+
+       const newDocument = new Document(
+            (this.documents.length + 1).toString(),
+            documentData.name,
+            new Date(),
+            PreservationStageEnum.INICIADA,
+            documentData.metadata || new Map<string, string>(),
+            (pathSplit[pathSplit.length - 2] as string).replace(filename+"-", "")
+        );
+
+        this.documents.push(newDocument);
+
+        return null;
 
     }
 

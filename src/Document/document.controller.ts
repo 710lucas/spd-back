@@ -5,6 +5,7 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
 import { extname } from "path";
 import { existsSync, mkdirSync } from "fs";
+import { CreateDocumentType } from "./DTOs/CreateDocumentDTO";
 
 @Controller("documents")
 export class DocumentController {
@@ -59,8 +60,8 @@ export class DocumentController {
             })
         })
     )
-    uploadDocument(@UploadedFile() file: Express.Multer.File) {
-        return this.documentService.sendSIP(file.filename);
+    uploadDocument(@UploadedFile() file: Express.Multer.File, @Body() body : CreateDocumentType) {
+        return this.documentService.sendSIP(file.filename, body);
     }
 
 }

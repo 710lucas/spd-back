@@ -8,6 +8,7 @@
   <h1>Enviar arquivo</h1>
   <form id="uploadForm">
     <input type="file" id="fileInput" name="file" required />
+    <input type="text" id="name" name="name" placeholder="Nome do arquivo" required />
     <button type="submit">Enviar</button>
   </form>
 
@@ -28,8 +29,14 @@
         return;
       }
 
+      const nameInput = document.getElementById('name');
+      const name = nameInput.value.trim();
+
+
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('name', name);
+
 
       try {
         const response = await fetch('http://localhost:3000/documents/upload', {
