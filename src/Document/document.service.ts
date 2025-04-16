@@ -89,12 +89,14 @@ export class DocumentService {
     }
 
 
-    async sendSIP(filename : string, documentData : CreateDocumentType){
+    async sendSIP(filename : string, folderName : string, documentData : CreateDocumentType){
 
         const filePath = process.env.REMOTE_UPLOAD_DIR || './uploads/'
         const locationUUID = process.env.LOCATION_UUID || 'UUID';
+        const fullFilePath = process.env.REMOTE_UPLOAD_FULL_DIR || '/home/local-transfers/uploads/'
 
         const fullPathEncoded = Buffer.from(`${locationUUID}:${filePath}`).toString('base64');
+        const fullBetaPathEncoded = Buffer.from(`${locationUUID}:${fullFilePath}${folderName}`).toString('base64').trim();
 
         const payload = {
             name : filename,
@@ -106,29 +108,26 @@ export class DocumentService {
 
         
         const response = await axios.post(
-            `${this.apiURL}/api/transfer/start_transfer/`,
-            new URLSearchParams({
+            `${this.apiURL}/api/v2beta/package`,
+            ({
                 'name' : filename.toString(),
+                'processing_config' : 'automated',
                 'type' : 'standard',
                 'accession' : '',
                 'paths[]': fullPathEncoded,
-                'row_id[]' : ''
+                'path' : fullBetaPathEncoded,
+                'row_id[]' : '',
+                'auto_approve' : true
             }),
             {
                 headers : {
                     Authorization : `ApiKey ${this.apiKey}`,
-                    'Content-Type' : 'application/x-www-form-urlencoded'
+                    'Content-Type' : 'application/json',
                 }
             }
         )
 
-
-
-        console.log(response.data)
-        console.log(filename)
-
-        const pathSplit = response.data.path.split('/')
-        console.log(pathSplit[pathSplit.length - 2])
+        console.log(response.data.id)
 
        const newDocument = new Document(
             (this.documents.length + 1).toString(),
@@ -136,7 +135,8 @@ export class DocumentService {
             new Date(),
             PreservationStageEnum.INICIADA,
             documentData.metadata || new Map<string, string>(),
-            (pathSplit[pathSplit.length - 2] as string).replace(filename+"-", "")
+            "",
+            response.data.id
         );
 
         this.documents.push(newDocument);

@@ -7,6 +7,7 @@ export class Document {
   preservationStage: PreservationStageEnum;
   metadata: Map<string, string> = new Map<string, string>();
   SIPuuid: string;
+  transferUUID: string;
 
   constructor(
     id: string,
@@ -14,7 +15,8 @@ export class Document {
     date: Date,
     preservationStage: PreservationStageEnum,
     metadata? : Map<string, string>,
-    SIPuuid? : string
+    SIPuuid? : string,
+    transferUUID? : string
   ) {
     this.id = id;
     this.name = name;
@@ -22,5 +24,6 @@ export class Document {
     this.preservationStage = preservationStage;
     this.metadata = metadata ? metadata : new Map<string, string>();
     this.SIPuuid = SIPuuid ? SIPuuid : '';
+    this.transferUUID = transferUUID ? transferUUID : '';
   }
 }

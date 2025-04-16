@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UploadedFile, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Put, Req, UploadedFile, UseInterceptors } from "@nestjs/common";
 import { DocumentService } from "./document.service";
 import { PreservationStageEnum } from "src/Enums/PreservationStageEnum";
 import { FileInterceptor } from "@nestjs/platform-express";
@@ -42,11 +42,14 @@ export class DocumentController {
         FileInterceptor("file", {
             storage : diskStorage({
                 destination : (req, file, cb) =>{
-                    const fullPath = (process.env.UPLOAD_DIR || "./uploads") + "/upload" + Date.now()
+                    const folderName = '/upload' + Date.now()
+                    const fullPath = (process.env.UPLOAD_DIR || "./uploads") + folderName
 
                     if (!existsSync(fullPath)) {
                         mkdirSync(fullPath, { recursive: true });
                       }
+
+                    (req as any).folderName = folderName
 
                     cb(null, fullPath)
                 },
@@ -60,8 +63,8 @@ export class DocumentController {
             })
         })
     )
-    uploadDocument(@UploadedFile() file: Express.Multer.File, @Body() body : CreateDocumentType) {
-        return this.documentService.sendSIP(file.filename, body);
+    uploadDocument(@UploadedFile() file: Express.Multer.File, @Body() body : CreateDocumentType, @Req() req : Request) {
+        return this.documentService.sendSIP(file.filename, (req as any).folderName, body);
     }
 
 }
