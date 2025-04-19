@@ -1,0 +1,24 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PreservationStageEnum {
+    INICIADA
+    PRESERVADO
+    FALHA
+}
+
+model Document {
+  id               String   @id @default(uuid())
+  name             String
+  date             DateTime
+  preservationStage PreservationStageEnum
+  metadata         Json     // Usamos Json no lugar de Map<string, string>
+  SIPuuid          String
+  transferUUID     String
+}
