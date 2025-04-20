@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res, UploadedFile, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
 import { DocumentService } from "./document.service";
 import { PreservationStageEnum } from "src/Enums/PreservationStageEnum";
 import { FileInterceptor } from "@nestjs/platform-express";
@@ -9,6 +9,7 @@ import { CreateDocumentType } from "./DTOs/CreateDocumentDTO";
 import { Request, Response } from "express";
 import axios from "axios";
 import { Document } from "./document.model";
+import { UserGuard } from "src/User/User.guard";
 
 @Controller("documents")
 export class DocumentController {

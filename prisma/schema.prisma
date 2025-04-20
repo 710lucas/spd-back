@@ -22,3 +22,9 @@ model Document {
   SIPuuid          String
   transferUUID     String
 }
+
+model User{
+  id        String   @id @default(uuid())
+  username      String
+  password  String
+}
