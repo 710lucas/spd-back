@@ -18,9 +18,10 @@ model Document {
   name             String
   date             DateTime
   preservationStage PreservationStageEnum
-  metadata         Json     // Usamos Json no lugar de Map<string, string>
-  SIPuuid          String
-  transferUUID     String
+  metadata         Json?     // Usamos Json no lugar de Map<string, string>
+  SIPuuid          String?
+  transferUUID     String?
+  ownerId          String
 }
 
 model User{

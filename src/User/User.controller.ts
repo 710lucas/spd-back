@@ -11,4 +11,10 @@ export class UserController {
         return await this.userService.login(username, password);
     }
 
+    @Post('register')
+    async register(@Body() body : { username: string, password: string }) {
+        const { username, password } = body;
+        return await this.userService.createUser(username, password);
+    }
+
 }

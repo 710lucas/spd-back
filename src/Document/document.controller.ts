@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Request, Res, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
 import { DocumentService } from "./document.service";
 import { PreservationStageEnum } from "src/Enums/PreservationStageEnum";
 import { FileInterceptor } from "@nestjs/platform-express";
@@ -6,8 +6,7 @@ import { diskStorage } from "multer";
 import { extname } from "path";
 import { existsSync, mkdirSync } from "fs";
 import { CreateDocumentType } from "./DTOs/CreateDocumentDTO";
-import { Request, Response } from "express";
-import axios from "axios";
+import { Response } from "express";
 import { Document } from "./document.model";
 import { UserGuard } from "src/User/User.guard";
 
@@ -17,28 +16,33 @@ export class DocumentController {
     constructor(private readonly documentService: DocumentService) {}
 
     @Get()
-    async getDocuments(@Query('search') search : string) {
-        return  (await this.documentService.getDocuments(search) as Document[])
+    @UseGuards(UserGuard)
+    async getDocuments(@Query('search') search : string, @Request() req) {
+        return  (await this.documentService.getDocuments(search, req.user) as Document[])
     }
 
     @Get(":id")
-    async getDocumentById(@Param("id") id : string) {
-        return await this.documentService.getDocumentById(id);
+    @UseGuards(UserGuard)
+    async getDocumentById(@Param("id") id : string, @Request() req) {
+        return await this.documentService.getDocumentById(id, req.user);
     }
 
     @Get("transfer/:id")
-    async getTransferById(@Param("id") id : string) {
-        return await this.documentService.getTransferData(id);
+    @UseGuards(UserGuard)
+    async getTransferById(@Param("id") id : string, @Request() req) {
+        return await this.documentService.getTransferData(id, req.user);
     }
 
     @Get('download/:id')
-    async downloadDocument(@Param("id") id : string) {
-        return await this.documentService.getDocumentURL(id);
+    @UseGuards(UserGuard)
+    async downloadDocument(@Param("id") id : string, @Request() req) {
+        return await this.documentService.getDocumentURL(id, req.user);
     }
 
     @Get('preview/:id')
-    async previewDocument(@Param("id") id : string, @Res() res : Response) {
-        const url = await this.documentService.getDocumentURL(id);
+    @UseGuards(UserGuard)
+    async previewDocument(@Param("id") id : string, @Res() res : Response, @Request() req) {
+        const url = await this.documentService.getDocumentURL(id, req.user);
 
 
         res.setHeader('X-Frame-Options', '');
@@ -51,16 +55,19 @@ export class DocumentController {
     }
 
     @Put(":id")
-    updateDocument(@Param("id") id: string, @Body() body: { name?: string; date?: Date; preservationStage?: PreservationStageEnum, metadata?: Map<string, string> }) {
-        return this.documentService.updateDocument(id, body.name, body.date ? new Date(body.date) : undefined, body.preservationStage, body.metadata);
+    @UseGuards(UserGuard)
+    updateDocument(@Param("id") id: string, @Request() req , @Body() body: { name?: string; date?: Date; preservationStage?: PreservationStageEnum, metadata?: Map<string, string> }) {
+        return this.documentService.updateDocument(id, req.user, body.name, body.date ? new Date(body.date) : undefined, body.preservationStage, body.metadata);
     }
 
     @Delete(":id")
-    deleteDocument(@Param("id") id: string) {
-        return this.documentService.deleteDocument(id);
+    @UseGuards(UserGuard)
+    deleteDocument(@Param("id") id: string, @Request() req) {
+        return this.documentService.deleteDocument(id, req.user);
     }
 
     @Post("upload")
+    @UseGuards(UserGuard)
     @UseInterceptors(
         FileInterceptor("file", {
             storage : diskStorage({
@@ -84,8 +91,8 @@ export class DocumentController {
             })
         })
     )
-    uploadDocument(@UploadedFile() file: Express.Multer.File, @Body() body : CreateDocumentType, @Req() req : Request) {
-        return this.documentService.sendSIP(file.filename, (req as any).folderName, body);
+    uploadDocument(@UploadedFile() file: Express.Multer.File, @Body() body : CreateDocumentType, @Req() req) {
+        return this.documentService.sendSIP(file.filename, (req as any).folderName, body, req.user);
     }
 
 }

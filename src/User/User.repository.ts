@@ -14,6 +14,13 @@ export class UserRepository {
     }
 
     async saveUser(user: Prisma.UserCreateInput) {
+
+        if (user.id === undefined) {
+            return await prisma.user.create({
+                data: user,
+            });
+        }
+
         return await prisma.user.upsert({
             where: { id: user.id },
             update: user,

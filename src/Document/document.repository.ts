@@ -8,6 +8,11 @@ export class DocumentRepository {
         return await prisma.document.findMany()
     }
 
+    async getAllDocumentsByUserId(userId: string) {
+        return await prisma.document.findMany({
+            where: { ownerId : userId },
+        })
+    }
 
     async getDocumentById(id: string) {
         return await prisma.document.findUnique({
@@ -16,6 +21,13 @@ export class DocumentRepository {
     }
 
     async saveDocument(document: any) {
+
+        if(document.id === undefined) {
+            return await prisma.document.create({
+                data: document,
+            })
+        }
+
         return await prisma.document.upsert({
             where: { id: document.id },
             update: document,

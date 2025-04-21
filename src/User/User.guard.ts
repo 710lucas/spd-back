@@ -1,5 +1,6 @@
-import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
 import { UserService } from "./User.service";
+import { User } from "@prisma/client";
 
 @Injectable()
 export class UserGuard implements CanActivate {
@@ -11,13 +12,19 @@ export class UserGuard implements CanActivate {
         const req = context.switchToHttp().getRequest();
         const authHeader : string = req.headers.Authorization  || req.headers.authorization;
 
+        if(!authHeader){
+            throw new UnauthorizedException('Authorization header is missing');
+        }
+
         if(!authHeader.startsWith('Bearer ')){
-            return false;
+            throw new UnauthorizedException('Invalid token format. Expected "Bearer <token>"');
         }
 
         const token = authHeader.split(' ')[1];
-        const user = await this.userService.validateUser(token, token);
-        req.user = user;
+        const decodedToken = this.userService.jwtService.decode(token) as { username: string, exp: number };
+        // const user = await this.userService.validateUser(token, token);
+        const user = await this.userService.getUserByUsername(decodedToken.username);
+        req.user = user as User;
         return true;
 
     }

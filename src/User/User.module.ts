@@ -10,7 +10,6 @@ import { UserService } from "./User.service";
             signOptions: { expiresIn: '1h' }
         })
     ],
-    controllers: [UserController],
     providers: [UserService],
     exports: [UserService]
 })

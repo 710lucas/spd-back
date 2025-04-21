@@ -4,5 +4,5 @@ export type CreateDocumentType = {
     name: string;
     date: Date;
     preservationStage: PreservationStageEnum;
-    metadata?: Map<string, string>;
+    metadata?: Record<string, string>;
 }

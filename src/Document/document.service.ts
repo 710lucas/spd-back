@@ -4,7 +4,7 @@ import { PreservationStageEnum } from "src/Enums/PreservationStageEnum";
 import { CreateDocumentType } from "./DTOs/CreateDocumentDTO";
 import { http } from "src/axiosConfig/http";
 import { DocumentRepository } from "./document.repository";
-import { Prisma } from "@prisma/client";
+import { Prisma, User } from "@prisma/client";
 
 @Injectable()
 export class DocumentService {
@@ -25,63 +25,63 @@ export class DocumentService {
 
     }
 
-    async saveDocument(document: Document): Promise<any> {
+    async saveDocument(document: Prisma.DocumentCreateInput): Promise<any> {
         return await this.documentRepository.saveDocument(document);
     }
 
-    async createDocument(name: string, date: Date, preservationStage: string, metadata? : Map<string, string>): Promise<any | string> {
+    // async createDocument(name: string, date: Date, preservationStage: string, metadata? : Map<string, string>): Promise<any | string> {
 
-        const documents = await this.documentRepository.getAllDocuments();
+    //     const documents = await this.documentRepository.getAllDocuments();
 
-        if(metadata && Object.keys(metadata).length > 4) {
-            return 'Metadata cannot have more than 4 keys';
-        }
+    //     if(metadata && Object.keys(metadata).length > 4) {
+    //         return 'Metadata cannot have more than 4 keys';
+    //     }
 
-        let stage: PreservationStageEnum;
-        switch (preservationStage) {
-            case 'INICIADA':
-                stage = PreservationStageEnum.INICIADA;
-                break;
-            case 'PRESERVADO':
-                stage = PreservationStageEnum.PRESERVADO;
-                break;
-            case 'FALHA':
-                stage = PreservationStageEnum.FALHA;
-                break;
-            default:
-                throw new Error('Invalid preservation stage');
-        }
-        const newDocument = new Document(
-            (documents.length + 1).toString(),
-            name,
-            date,
-            stage,
-            metadata
-        );
+    //     let stage: PreservationStageEnum;
+    //     switch (preservationStage) {
+    //         case 'INICIADA':
+    //             stage = PreservationStageEnum.INICIADA;
+    //             break;
+    //         case 'PRESERVADO':
+    //             stage = PreservationStageEnum.PRESERVADO;
+    //             break;
+    //         case 'FALHA':
+    //             stage = PreservationStageEnum.FALHA;
+    //             break;
+    //         default:
+    //             throw new Error('Invalid preservation stage');
+    //     }
+    //     const newDocument = {
+    //         (documents.length + 1).toString(),
+    //         name,
+    //         date,
+    //         stage,
+    //         metadata
+    //     }
 
-        await this.saveDocument(newDocument);
+    //     await this.saveDocument(newDocument);
 
-        return newDocument;
-    }
+    //     return newDocument;
+    // }
 
-    async getDocuments(search : string): Promise<any[]> {
+    async getDocuments(search : string, user : User): Promise<any[]> {
 
-        let documents = await this.documentRepository.getAllDocuments();
+        let documents = await this.documentRepository.getAllDocumentsByUserId(user.id);
 
         try{
 
             documents.forEach(async (document) => {
-                await this.getTransferData(document.id)
+                await this.getTransferData(document.id, user)
                 if(document.SIPuuid === '' || document.SIPuuid === undefined) {
-                    await this.getTransferData(document.id)
+                    await this.getTransferData(document.id, user)
                 }
             })
-            documents = await this.documentRepository.getAllDocuments();
+            documents = await this.documentRepository.getAllDocumentsByUserId(user.id);
 
             if(search) {
                 return documents.filter(doc => {
-                    const newMetadata = new Map<string, string>(Object.entries(JSON.parse(doc.metadata as unknown as string)))
-                    return Array.from(newMetadata.values()).some(value => value.toLowerCase().includes(search.toLowerCase()));
+                    const newMetadata = doc.metadata as Record<string, string>; 
+                    return Object.values(newMetadata).some(value => value.toLowerCase().includes(search.toLowerCase()));
                 });
             }
 
@@ -93,12 +93,16 @@ export class DocumentService {
         
     }
 
-    async getDocumentById(id: string): Promise<any | undefined>{
-        return this.documentRepository.getDocumentById(id);
+    async getDocumentById(id: string, user : User): Promise<any | undefined>{
+        const document = await this.documentRepository.getDocumentById(id);
+        if(!document || document.ownerId !== user.id) {
+            return undefined;
+        }
+        return document
     }
 
-    async updateDocument(id: string, name?: string, date?: Date, preservationStage?: PreservationStageEnum, metadata? : Map<string, string>): Promise<Document | string | undefined>{
-        const document = await this.getDocumentById(id);
+    async updateDocument(id: string, user : User, name?: string, date?: Date, preservationStage?: PreservationStageEnum, metadata? : Map<string, string>): Promise<Document | string | undefined>{
+        const document = await this.getDocumentById(id, user);
         if (document) {
             document.name = name ?? document.name;
             document.date = date ?? document.date;
@@ -114,18 +118,18 @@ export class DocumentService {
     }
 
     //Mudar para delete logico
-    async deleteDocument(id: string): Promise<boolean> {
-        const documents = await this.documentRepository.getAllDocuments();
-        const index = documents.findIndex(doc => doc.id === id);
-        if (index !== -1) {
-            documents.splice(index, 1);
-            return true;
+    async deleteDocument(id: string, user : User): Promise<boolean> {
+
+        const document = await this.getDocumentById(id, user);
+        if (!document) {
+            return false;
         }
-        return false;
+        await this.documentRepository.deleteDocument(id);
+        return true;
     }
 
 
-    async sendSIP(filename : string, folderName : string, documentData : CreateDocumentType){
+    async sendSIP(filename : string, folderName : string, documentData : CreateDocumentType, user : User){
 
         const filePath = process.env.REMOTE_UPLOAD_DIR || './uploads/'
         const locationUUID = process.env.LOCATION_UUID || 'UUID';
@@ -134,15 +138,19 @@ export class DocumentService {
         const fullPathEncoded = Buffer.from(`${locationUUID}:${filePath}`).toString('base64');
         const fullBetaPathEncoded = Buffer.from(`${locationUUID}:${fullFilePath}${folderName}`).toString('base64').trim();
 
-        const payload = {
-            name : filename,
-            type : 'standard',
-            accession : '',
-            paths : [fullPathEncoded],
-            row_ids : ['']
-        }
-
         try{
+
+            if(typeof documentData.metadata == 'string'){
+                documentData.metadata = JSON.parse(documentData.metadata);
+            } 
+            
+            if(documentData.metadata && Object.keys(documentData.metadata).length > 4) {
+                console.log(typeof documentData.metadata)
+                console.log(documentData.metadata)
+                console.log(Object.keys(documentData.metadata))
+                return 'Metadata cannot have more than 4 keys';
+            }
+
             const response = await http.post(
                 `${this.apiURL}/api/v2beta/package`,
                 ({
@@ -164,19 +172,20 @@ export class DocumentService {
             )
             console.log(response.data.id)
 
-            const documents = await this.documentRepository.getAllDocuments();
+            console.log(documentData.metadata)
+            console.log(JSON.stringify(documentData.metadata || new Map<string, string>()))
 
-            const newDocument = new Document(
-                (documents.length + 1).toString(),
-                filename,
-                new Date(),
-                PreservationStageEnum.INICIADA,
-                documentData.metadata || new Map<string, string>(),
-                "",
-                response.data.id
-            );
 
-            this.saveDocument(newDocument);
+            const newDocument = {
+                name : filename,
+                date : new Date(),
+                preservationStage : PreservationStageEnum.INICIADA,
+                metadata : documentData.metadata as unknown as Prisma.JsonObject,
+                transferUUID : response.data.id,
+                ownerId : user.id,
+            } as Prisma.DocumentCreateInput;
+            
+            await this.saveDocument(newDocument);
 
             return null;
 
@@ -197,10 +206,10 @@ export class DocumentService {
         }
     }
 
-    async getTransferData(documentId : string){
+    async getTransferData(documentId : string, user : User){
 
         try{
-            const document = await this.getDocumentById(documentId);
+            const document = await this.getDocumentById(documentId, user);
 
             if(!document) {
                 return 'Document not found'
@@ -233,14 +242,14 @@ export class DocumentService {
         }
     }
 
-    async getDocumentURL(documentId : string){
+    async getDocumentURL(documentId : string, user : User){
         try{
-            const document = await this.getDocumentById(documentId);
+            const document = await this.getDocumentById(documentId, user);
             if(!document) {
                 return 'Document not found'
             }
 
-            const transferData = await this.getTransferData(documentId);
+            const transferData = await this.getTransferData(documentId, user);
             if(!document.SIPuuid) {
 
 
